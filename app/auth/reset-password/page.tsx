@@ -60,9 +60,11 @@ export default function ResetPasswordPage() {
 
       toast.success("Password berhasil diubah!");
       router.push("/auth");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Password reset error:", error);
-      toast.error(error.message || "Gagal mengubah password");
+      const errorMessage =
+        error instanceof Error ? error.message : "Gagal mengubah password";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

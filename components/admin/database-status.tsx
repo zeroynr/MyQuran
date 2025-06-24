@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -34,16 +34,16 @@ export function DatabaseStatus() {
 
   const supabase = createClient();
 
-  const checkDatabaseStatus = async () => {
+  const checkDatabaseStatus = useCallback(async () => {
     setChecking(true);
     try {
       // Simplified check - just test basic table access
-      const { data: profileData, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from("profiles")
         .select("id")
         .limit(1);
 
-      const { data: bookmarkData, error: bookmarkError } = await supabase
+      const { error: bookmarkError } = await supabase
         .from("bookmarks")
         .select("id")
         .limit(1);
@@ -119,21 +119,21 @@ export function DatabaseStatus() {
       setChecking(false);
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     checkDatabaseStatus();
-  }, []);
+  }, [checkDatabaseStatus]);
 
   const testDatabaseAccess = async () => {
     try {
       // Test basic operations
-      const { data: profileData, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from("profiles")
         .select("id, email, role")
         .limit(1);
 
-      const { data: bookmarkData, error: bookmarkError } = await supabase
+      const { error: bookmarkError } = await supabase
         .from("bookmarks")
         .select("id")
         .limit(1);

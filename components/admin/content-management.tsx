@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,11 +66,7 @@ export function ContentManagement() {
     { value: "umum", label: "Doa Umum" },
   ];
 
-  useEffect(() => {
-    fetchPrayers();
-  }, []);
-
-  const fetchPrayers = async () => {
+  const fetchPrayers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from("daily_prayers")
@@ -85,7 +81,11 @@ export function ContentManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchPrayers();
+  }, [fetchPrayers]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
