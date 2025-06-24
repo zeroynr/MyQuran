@@ -26,6 +26,14 @@ interface Prayer {
   tomorrow?: boolean;
 }
 
+interface PrayerTimes {
+  Fajr: string;
+  Dhuhr: string;
+  Asr: string;
+  Maghrib: string;
+  Isha: string;
+}
+
 const PRAYER_ICONS = {
   Fajr: Sunrise,
   Dhuhr: Sun,
@@ -43,7 +51,7 @@ const PRAYER_COLORS = {
 } as const;
 
 export default function PrayerTimesPage() {
-  const [prayerTimes, setPrayerTimes] = useState<any>(null);
+  const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [city, setCity] = useState("Jakarta");
   const [inputCity, setInputCity] = useState("Jakarta");
   const [loading, setLoading] = useState(true);
@@ -277,7 +285,7 @@ export default function PrayerTimesPage() {
                             {name}
                           </h3>
                           <p className="text-3xl font-mono text-transparent bg-gradient-to-r from-gray-300 to-gray-100 bg-clip-text font-bold">
-                            {prayerTimes[key]}
+                            {prayerTimes[key as keyof PrayerTimes]}
                           </p>
                         </div>
 

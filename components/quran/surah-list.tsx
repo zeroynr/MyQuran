@@ -96,7 +96,7 @@ export default function QuranPage() {
           toast.success(`${surah.englishName} ditambahkan ke favorit`);
         }
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal mengubah favorit");
     }
   };
@@ -183,7 +183,9 @@ export default function QuranPage() {
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
-                  onClick={() => setFilterType(key as any)}
+                  onClick={() =>
+                    setFilterType(key as "all" | "meccan" | "medinan")
+                  }
                   className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                     filterType === key
                       ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg"

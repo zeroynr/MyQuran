@@ -35,15 +35,34 @@ interface SurahReaderProps {
   surahNumber: number;
 }
 
+interface Ayah {
+  number: number;
+  numberInSurah: number;
+  text: string;
+  translation?: string;
+  transliteration?: string;
+  audio?: string;
+}
+
+interface SurahData {
+  number: number;
+  name: string; // ✅ Fixed: Changed from number to string
+  englishName: string;
+  englishNameTranslation: string;
+  revelationType: string;
+  numberOfAyahs: number;
+  ayahs: Ayah[];
+}
+
 export default function SurahReader({ surahNumber }: SurahReaderProps) {
-  const [surah, setSurah] = useState<any>(null);
+  const [surah, setSurah] = useState<SurahData | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [playingAyah, setPlayingAyah] = useState<number | null>(null);
   const [audioLoading, setAudioLoading] = useState<number | null>(null);
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
-  const [selectedAyah, setSelectedAyah] = useState<any>(null);
+  const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const supabase = createClient();
 
@@ -51,7 +70,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
     const fetchData = async () => {
       try {
         const surahData = await getSurah(surahNumber);
-        setSurah(surahData);
+        setSurah(surahData); // ✅ Now this works because types match
 
         const {
           data: { user },
@@ -113,7 +132,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
       } else if (error.code === "23505") {
         toast.success(`${surah.englishName} sudah ada di favorit`);
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal menambah ke favorit");
     }
   };
@@ -127,8 +146,8 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
     try {
       const { error } = await supabase.from("bookmarks").insert({
         user_id: user.id,
-        surah_number: surah.number,
-        surah_name: surah.englishName,
+        surah_number: surah?.number,
+        surah_name: surah?.englishName,
         ayah_number: selectedAyah.numberInSurah,
         ayah_text: selectedAyah.text,
         note: bookmarkNote.trim() || null,
@@ -142,7 +161,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
       } else if (error.code === "23505") {
         toast.success("Ayat sudah ditandai sebelumnya");
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal menambah bookmark");
     }
   };
@@ -188,7 +207,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
       };
 
       // Handle audio error
-      const handleError = (e: any) => {
+      const handleError = (e: Event) => {
         console.error("Audio error:", e);
         setPlayingAyah(null);
         setAudioLoading(null);
@@ -209,7 +228,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
         audioRef.current = audio;
       } catch (playError) {
         console.error(`❌ Play failed for ayah ${ayahNumber}:`, playError);
-        handleError(playError);
+        handleError(new Event("error"));
       }
     } catch (error) {
       console.error(`💥 Error in playAyah for ayah ${ayahNumber}:`, error);
@@ -227,7 +246,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
   const shareAyah = (ayahText: string, ayahNumber: number) => {
     if (navigator.share) {
       navigator.share({
-        title: `${surah.englishName} - Ayat ${ayahNumber}`,
+        title: `${surah?.englishName} - Ayat ${ayahNumber}`,
         text: ayahText,
       });
     } else {
@@ -235,7 +254,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
     }
   };
 
-  const openBookmarkDialog = (ayah: any) => {
+  const openBookmarkDialog = (ayah: Ayah) => {
     if (!user) {
       toast.error("Login diperlukan untuk menambah bookmark");
       return;
@@ -352,7 +371,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
 
           {/* Ayahs */}
           <div className="space-y-6 animate-slide-in delay-200">
-            {surah.ayahs?.map((ayah: any, index: number) => (
+            {surah.ayahs?.map((ayah: Ayah, index: number) => (
               <Card
                 key={ayah.number}
                 className="group hover:shadow-2xl transition-all duration-500 bg-slate-800/40 border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden"
@@ -439,7 +458,9 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => playAyah(ayah.numberInSurah, ayah.audio)}
+                        onClick={() =>
+                          playAyah(ayah.numberInSurah, ayah.audio || "")
+                        }
                         disabled={audioLoading === ayah.numberInSurah}
                         className={`${
                           playingAyah === ayah.numberInSurah

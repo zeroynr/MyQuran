@@ -36,6 +36,14 @@ interface SurahWithTranslation {
   ayahs: Ayah[];
 }
 
+interface PrayerTimes {
+  Fajr: string;
+  Dhuhr: string;
+  Asr: string;
+  Maghrib: string;
+  Isha: string;
+}
+
 // Get all surahs list
 export async function getSurahs(): Promise<Surah[]> {
   try {
@@ -126,7 +134,7 @@ export async function getSurah(
   try {
     console.log(`Fetching surah ${number}...`);
 
-    // Try Quran.com API first for better Bismillah handling (same as Code 1)
+    // Try Quran.com API first for better Bismillah handling
     const quranComResult = await getSurahFromQuranCom(number);
     if (quranComResult) {
       console.log("✅ Using Quran.com API data");
@@ -182,41 +190,48 @@ async function getSurahFromQuranCom(
 
     console.log(`Quran.com API - Original verses count: ${verses.length}`);
 
-    // Process verses using the cleaner functions from Code 2
-    const processedAyahs: Ayah[] = verses.map((verse: any, index: number) => {
-      const ayahNumber = index + 1;
-      let arabicText = verse.text_uthmani;
+    // Process verses using the cleaner functions
+    const processedAyahs: Ayah[] = verses.map(
+      (verse: unknown, index: number) => {
+        const verseData = verse as Record<string, unknown>;
+        const ayahNumber = index + 1;
+        let arabicText = verseData.text_uthmani as string;
 
-      // Clean Bismillah from first ayah (except for Al-Fatihah and At-Tawbah)
-      if (index === 0 && number !== 1 && number !== 9) {
-        const originalText = arabicText;
-        arabicText = cleanBismillahFromAyah(arabicText);
+        // Clean Bismillah from first ayah (except for Al-Fatihah and At-Tawbah)
+        if (index === 0 && number !== 1 && number !== 9) {
+          const originalText = arabicText;
+          arabicText = cleanBismillahFromAyah(arabicText);
 
-        if (originalText !== arabicText) {
-          console.log(`🧹 Cleaned first ayah of surah ${number} (Quran.com)`);
-          console.log(`🧹 Original: "${originalText}"`);
-          console.log(`🧹 Cleaned: "${arabicText}"`);
+          if (originalText !== arabicText) {
+            console.log(`🧹 Cleaned first ayah of surah ${number} (Quran.com)`);
+            console.log(`🧹 Original: "${originalText}"`);
+            console.log(`🧹 Cleaned: "${arabicText}"`);
+          }
         }
+
+        // Clean translation text using the improved function
+        const translations = verseData.translations as
+          | Array<{ text: string }>
+          | undefined;
+        const rawTranslation =
+          translations?.[0]?.text || "Terjemahan tidak tersedia";
+        const cleanTranslation = cleanTranslationText(rawTranslation);
+
+        return {
+          number: verseData.id as number,
+          numberInSurah: ayahNumber,
+          text: arabicText,
+          translation: cleanTranslation,
+          transliteration:
+            transliterationData?.data?.ayahs?.[index]?.text || "",
+          juz: verseData.juz_number as number,
+          page: verseData.page_number as number,
+          audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
+            number
+          ).padStart(3, "0")}${String(ayahNumber).padStart(3, "0")}.mp3`,
+        };
       }
-
-      // Clean translation text using the improved function
-      const rawTranslation =
-        verse.translations?.[0]?.text || "Terjemahan tidak tersedia";
-      const cleanTranslation = cleanTranslationText(rawTranslation);
-
-      return {
-        number: verse.id,
-        numberInSurah: ayahNumber,
-        text: arabicText,
-        translation: cleanTranslation,
-        transliteration: transliterationData?.data?.ayahs?.[index]?.text || "",
-        juz: verse.juz_number,
-        page: verse.page_number,
-        audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
-          number
-        ).padStart(3, "0")}${String(ayahNumber).padStart(3, "0")}.mp3`,
-      };
-    });
+    );
 
     console.log(`Quran.com API - Final ayahs count: ${processedAyahs.length}`);
 
@@ -274,9 +289,10 @@ async function getSurahFromAlQuranCloud(
 
     // Process ayahs and clean Bismillah from first ayah (except for Al-Fatihah and At-Tawbah)
     const combinedAyahs: Ayah[] = arabicAyahs.map(
-      (ayah: any, index: number) => {
+      (ayah: unknown, index: number) => {
+        const ayahData = ayah as Record<string, unknown>;
         const ayahNumber = index + 1;
-        let arabicText = ayah.text;
+        let arabicText = ayahData.text as string;
 
         // Clean Bismillah from first ayah of surahs (except Al-Fatihah and At-Tawbah)
         if (index === 0 && number !== 1 && number !== 9) {
@@ -298,17 +314,17 @@ async function getSurahFromAlQuranCloud(
         const cleanTranslation = cleanTranslationText(rawTranslation);
 
         return {
-          number: ayah.number,
+          number: ayahData.number as number,
           numberInSurah: ayahNumber,
           text: arabicText,
           translation: cleanTranslation,
           transliteration: transliterationAyahs[index]?.text || "",
-          juz: ayah.juz,
-          page: ayah.page,
-          manzil: ayah.manzil,
-          ruku: ayah.ruku,
-          hizbQuarter: ayah.hizbQuarter,
-          sajda: ayah.sajda,
+          juz: ayahData.juz as number,
+          page: ayahData.page as number,
+          manzil: ayahData.manzil as number,
+          ruku: ayahData.ruku as number,
+          hizbQuarter: ayahData.hizbQuarter as number,
+          sajda: ayahData.sajda as boolean,
           audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
             number
           ).padStart(3, "0")}${String(ayahNumber).padStart(3, "0")}.mp3`,
@@ -336,7 +352,7 @@ async function getSurahFromAlQuranCloud(
 }
 
 // Prayer times API
-export async function getPrayerTimes(city = "Jakarta") {
+export async function getPrayerTimes(city = "Jakarta"): Promise<PrayerTimes> {
   try {
     const response = await fetch(
       `https://api.aladhan.com/v1/timingsByCity?city=${city}&country=Indonesia&method=2`
@@ -505,47 +521,6 @@ function getStaticSurah(number: number): SurahWithTranslation | null {
           juz: 1,
           page: 1,
           audio: "https://everyayah.com/data/Alafasy_128kbps/001007.mp3",
-        },
-      ],
-    };
-  }
-
-  if (number === 2) {
-    return {
-      ...surah,
-      ayahs: [
-        {
-          number: 1,
-          numberInSurah: 1,
-          text: "الم",
-          translation: "Alif Lam Mim.",
-          transliteration: "Alif Lam Mim",
-          juz: 1,
-          page: 2,
-          audio: "https://everyayah.com/data/Alafasy_128kbps/002001.mp3",
-        },
-        {
-          number: 2,
-          numberInSurah: 2,
-          text: "ذَٰلِكَ الْكِتَابُ لَا رَيْبَ ۛ فِيهِ ۛ هُدًى لِّلْمُتَّقِينَ",
-          translation:
-            "Kitab (Al-Quran) ini tidak ada keraguan di dalamnya; petunjuk bagi orang-orang yang bertakwa.",
-          transliteration: "Zalikal kitabu la raiba fih; hudan lil muttaqin",
-          juz: 1,
-          page: 2,
-          audio: "https://everyayah.com/data/Alafasy_128kbps/002002.mp3",
-        },
-        {
-          number: 3,
-          numberInSurah: 3,
-          text: "الَّذِينَ يُؤْمِنُونَ بِالْغَيْبِ وَيُقِيمُونَ الصَّلَاةَ وَمِمَّا رَزَقْنَاهُمْ يُنفِقُونَ",
-          translation:
-            "(yaitu) mereka yang beriman kepada yang gaib, yang mendirikan shalat, dan menafkahkan sebahagian rezeki yang Kami anugerahkan kepada mereka.",
-          transliteration:
-            "Allazeena yu'minoona bil ghaibi wa yuqeemoonas salaata wa mimma razaqnaahum yunfiqoon",
-          juz: 1,
-          page: 2,
-          audio: "https://everyayah.com/data/Alafasy_128kbps/002003.mp3",
         },
       ],
     };

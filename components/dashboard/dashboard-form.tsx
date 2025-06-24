@@ -100,7 +100,7 @@ export default function DashboardPage() {
         setFavorites(favorites.filter((fav) => fav.id !== favoriteId));
         toast.success("Favorit dihapus");
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal menghapus favorit");
     }
   };
@@ -118,7 +118,7 @@ export default function DashboardPage() {
         );
         toast.success("Bookmark dihapus");
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal menghapus bookmark");
     }
   };
@@ -134,7 +134,7 @@ export default function DashboardPage() {
         setReadingHistory([]);
         toast.success("Riwayat bacaan dihapus");
       }
-    } catch (error) {
+    } catch {
       toast.error("Gagal menghapus riwayat");
     }
   };

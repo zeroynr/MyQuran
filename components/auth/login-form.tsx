@@ -90,11 +90,13 @@ export default function AuthPage() {
         }
         router.refresh();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Gagal masuk. Periksa email dan password Anda.";
       console.error("Sign in error:", error);
-      toast.error(
-        error.message || "Gagal masuk. Periksa email dan password Anda."
-      );
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -129,9 +131,13 @@ export default function AuthPage() {
           toast.success("Silakan cek email untuk verifikasi, lalu login.");
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Gagal mendaftar. Silakan coba lagi.";
       console.error("Sign up error:", error);
-      toast.error(error.message || "Gagal mendaftar. Silakan coba lagi.");
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -153,9 +159,13 @@ export default function AuthPage() {
       );
       setShowResetForm(false);
       setResetEmail("");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Gagal mengirim email reset password.";
       console.error("Password reset error:", error);
-      toast.error(error.message || "Gagal mengirim email reset password.");
+      toast.error(errorMessage);
     } finally {
       setResetLoading(false);
     }
