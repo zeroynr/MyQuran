@@ -11,7 +11,6 @@ import {
   Database,
   Shield,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
 interface PolicyInfo {
@@ -24,8 +23,6 @@ export function PolicyManager() {
   const [policies, setPolicies] = useState<PolicyInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [cleaning, setCleaning] = useState(false);
-
-  const supabase = createClient();
 
   const loadPolicies = async () => {
     setLoading(true);
@@ -152,7 +149,7 @@ export function PolicyManager() {
       toast.info(
         "Jalankan script 12-clean-existing-policies.sql di SQL Editor"
       );
-    } catch (error) {
+    } catch {
       toast.error("Gagal membersihkan policy");
     } finally {
       setCleaning(false);
@@ -164,7 +161,7 @@ export function PolicyManager() {
       toast.info(
         "Jalankan script 10-disable-rls-temporarily-fixed.sql di SQL Editor"
       );
-    } catch (error) {
+    } catch {
       toast.error("Gagal disable RLS");
     }
   };

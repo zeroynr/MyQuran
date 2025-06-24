@@ -12,9 +12,7 @@ export async function checkDatabaseSetup() {
       .eq("tgname", "on_auth_user_created");
 
     // Test 2: Check if RLS is enabled
-    const { data: rlsData, error: rlsError } = await supabase.rpc(
-      "check_rls_status"
-    );
+    const { error: rlsError } = await supabase.rpc("check_rls_status");
 
     // Test 3: Try to create a test profile (will fail if trigger doesn't work)
     const { data: userData } = await supabase.auth.getUser();

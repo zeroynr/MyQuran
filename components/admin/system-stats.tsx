@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, BookOpen, Heart, Clock, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -25,11 +25,7 @@ export function SystemStats() {
 
   const supabase = createClient();
 
-  useEffect(() => {
-    fetchStats();
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       // Get user stats
       const { count: totalUsers } = await supabase
@@ -66,7 +62,11 @@ export function SystemStats() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   const statCards = [
     {
