@@ -484,7 +484,7 @@ export default function DashboardPage() {
                       {bookmark.note && (
                         <div className="bg-slate-600/30 rounded-lg p-3">
                           <p className="text-gray-300 text-sm italic">
-                            "{bookmark.note}"
+                            &quot;{bookmark.note}&quot;
                           </p>
                         </div>
                       )}
