@@ -120,10 +120,10 @@ export function Footer() {
         <div className="border-t border-emerald-200/50 dark:border-emerald-700/50 pt-6 mb-6">
           <div className="text-center bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-lg p-6">
             <p className="text-gray-700 dark:text-gray-300 italic text-base md:text-lg mb-2 transition-all duration-500 leading-relaxed">
-              "{currentQuote.text}"
+              {`"${currentQuote.text}"`}
             </p>
             <p className="text-emerald-600 dark:text-emerald-400 text-sm font-medium transition-all duration-500">
-              - {currentQuote.reference}
+              {`- ${currentQuote.reference}`}
             </p>
           </div>
         </div>
@@ -134,14 +134,14 @@ export function Footer() {
             {/* Copyright */}
             <div className="text-center md:text-left mb-4 md:mb-0">
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                © {copyright.year} {copyright.text}
+                {`© ${copyright.year} ${copyright.text}`}
               </p>
             </div>
 
             {/* Creator Credit */}
             <div className="text-center md:text-right">
               <p className="text-gray-600 dark:text-gray-400 text-sm">
-                {copyright.creator.message} {copyright.creator.name}
+                {`${copyright.creator.message} ${copyright.creator.name}`}
               </p>
             </div>
           </div>

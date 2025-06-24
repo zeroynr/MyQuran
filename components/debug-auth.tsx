@@ -1,47 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 import { User } from "lucide-react";
 
 export function DebugAuth() {
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
+  const [user, setUser] = useState<unknown>(null);
+  const [profile, setProfile] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
 
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
       // Get current user
-      const { data: userData, error: userError } =
-        await supabase.auth.getUser();
+      const { data: userData } = await supabase.auth.getUser();
       setUser(userData.user);
 
       if (userData.user) {
         // Get profile
-        const { data: profileData, error: profileError } = await supabase
+        const { data: profileData } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", userData.user.id)
           .single();
 
         setProfile(profileData);
-        console.log("Profile data:", profileData);
-        console.log("Profile error:", profileError);
       }
     } catch (error) {
       console.error("Auth check error:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
 
   if (loading) {
     return <div className="text-white">Loading auth debug...</div>;
@@ -60,7 +57,10 @@ export function DebugAuth() {
           <div>
             <strong className="text-blue-400">User:</strong>
             <pre className="text-gray-300 bg-slate-900 p-1 rounded mt-1 overflow-x-auto">
-              {user
+              {user &&
+              typeof user === "object" &&
+              "id" in user &&
+              "email" in user
                 ? JSON.stringify({ id: user.id, email: user.email }, null, 2)
                 : "Not logged in"}
             </pre>
