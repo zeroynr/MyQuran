@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 📖 MyQuran - Aplikasi Islami Lengkap
 
-## Getting Started
+Aplikasi Al-Quran digital modern yang dibangun dengan Next.js, menyediakan pengalaman membaca Al-Quran yang nyaman dan fitur-fitur islami yang berguna untuk kehidupan sehari-hari.
 
-First, run the development server:
+## ✨ Fitur Utama
 
+### 🕌 MyQuran
+- **Teks Arab dengan Terjemahan**: Membaca Al-Quran dengan terjemahan Bahasa Indonesia
+- **Audio Tilawah**: Mendengarkan bacaan Al-Quran 
+- **Pencarian Ayat**: Mencari ayat berdasarkan kata kunci atau nomor surah
+- **Tafsir**: Membaca tafsir ayat-ayat Al-Quran
+- **Bookmark & Terakhir Dibaca**: Menyimpan progress bacaan
+
+### ⭐ Fitur Favorit
+- **Simpan Ayat Favorit**: Menyimpan ayat-ayat pilihan untuk dibaca ulang
+- **Koleksi Surah**: Menandai surah-surah favorit
+- **Catatan Pribadi**: Menambahkan catatan pada ayat tertentu
+- **Sinkronisasi**: Data favorit tersimpan dengan akun pengguna
+
+### 🕐 Jadwal Sholat
+- **Waktu Sholat Akurat**: Menampilkan jadwal sholat berdasarkan lokasi
+- **Input Lokasi Manual**: Pengguna dapat memasukkan nama kota/lokasi secara manual
+- **Penyesuaian Lokasi**: Mudah mengganti lokasi untuk melihat jadwal sholat daerah lain
+
+### 🤲 Doa Sehari-hari
+- **Koleksi Doa Lengkap**: Kumpulan doa-doa harian dalam kehidupan Muslim
+- **Kategori Doa**: Doa berdasarkan situasi (bangun tidur, makan, perjalanan, tidur, dll)
+- **Teks Arab dan Terjemahan**: Doa dalam bahasa Arab dengan terjemahan Indonesia
+- **Doa Favorit**: Menyimpan doa-doa yang sering dibaca
+
+### 🔐 Sistem Login & Profil
+- **Autentikasi Aman**: Login dengan email/username dan password
+- **Profil Pengguna**: Mengelola informasi pribadi dan preferensi
+- **Sinkronisasi Data**: Backup favorit, bookmark, dan progress bacaan
+- **Multi-device**: Akses dari berbagai perangkat dengan data yang tersinkron
+
+## 📸 Cuplikan
+<img width="960" alt="Image" src="https://github.com/user-attachments/assets/4a019537-f4e9-43b3-8b26-4c6a29693087" />
+
+<img width="960" alt="Image" src="https://github.com/user-attachments/assets/7fdea1ba-6259-4cdf-b4c2-9c2681128440" />
+
+<img width="960" alt="Image" src="https://github.com/user-attachments/assets/04a46122-13d0-48b9-acf3-59e86e65d5b0" />
+
+<img width="957" alt="Image" src="https://github.com/user-attachments/assets/a35f16d4-ff93-462b-ac41-eb2633d4ccaf" />
+
+<img width="960" alt="Image" src="https://github.com/user-attachments/assets/e5aeba58-3475-4425-8d66-9b07fbfc2fd3" />
+
+## 🚀 Teknologi yang Digunakan
+
+- **Framework**: [Next.js 14](https://nextjs.org/) dengan App Router
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Database**: [supabase](https://supabase.com/)
+- **Authentication**: [NextAuth.js](https://next-auth.js.org/)
+- **UI Components**: [shadcn/ui](https://ui.shadcn.com/)
+- **Icons**: [Lucide React](https://lucide.dev/)
+  
+## 📋 Prasyarat
+
+Pastikan Anda telah menginstal:
+- [Node.js](https://nodejs.org/) (versi 18.0 atau lebih baru)
+- [npm](https://www.npmjs.com/), [yarn](https://yarnpkg.com/), [pnpm](https://pnpm.io/), atau [bun](https://bun.sh/)
+- [supabase](https://supabase.com/)
+
+## 🛠️ Instalasi dan Setup
+
+### 1. Clone Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/zeroynr/MyQuran.git
+cd MyQuran
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+# atau
+yarn install
+# atau
+pnpm install
+# atau
+bun install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Jalankan Development Server
+```bash
+npm run dev
+# atau
+yarn dev
+# atau
+pnpm dev
+# atau
+bun dev
+```
+Buka [http://localhost:3000](http://localhost:3000) di browser untuk melihat aplikasi.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🤝 Kontribusi
 
-## Learn More
+Kami menyambut kontribusi dari komunitas! Untuk berkontribusi:
 
-To learn more about Next.js, take a look at the following resources:
+1. Fork repository ini
+2. Buat branch fitur baru (`git checkout -b feature/amazing-feature`)
+3. Commit perubahan (`git commit -m 'Add amazing feature'`)
+4. Push ke branch (`git push origin feature/amazing-feature`)
+5. Buat Pull Request
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Guidelines Kontribusi
+- Ikuti coding standards yang ada
+- Tambahkan tests untuk fitur baru
+- Update dokumentasi jika diperlukan
+- Pastikan semua tests lulus
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Deploy on Vercel
+## 📜 License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Proyek ini dilisensikan di bawah [MIT License](LICENSE).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+### 🌟 Beri Star Jika Bermanfaat!
+
+Jika aplikasi ini bermanfaat untuk Anda, jangan lupa untuk memberikan ⭐ di repository ini!
+
+**Barakallahu fiikum** - Semoga Allah memberkahi usaha kita dalam menyebarkan Al-Quran digital.
