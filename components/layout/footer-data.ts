@@ -65,7 +65,7 @@ export const footerData = {
   },
   copyright: {
     year: new Date().getFullYear(),
-    text: "Al-Quran Digital. All rights reserved.",
+    text: "MyQuran. All rights reserved.",
     creator: {
       message: "Dibuat oleh",
       name: "Muhammad Ridho Ardiansyah",
