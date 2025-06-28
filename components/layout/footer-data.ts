@@ -3,7 +3,7 @@ import { Facebook, Twitter, Instagram, Youtube } from "lucide-react";
 
 export const footerData = {
   brand: {
-    name: "Al-Quran Digital",
+    name: "MyQuran",
     tagline: "Platform Islami Terlengkap",
     description:
       "Platform digital untuk membaca Al-Quran, melihat jadwal sholat, dan mengakses doa-doa harian. Dilengkapi dengan fitur favorit dan riwayat bacaan.",
