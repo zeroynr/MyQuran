@@ -21,36 +21,73 @@ export default function QuranPage() {
     "all"
   );
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
+    let mounted = true;
+
     const fetchData = async () => {
+      if (!mounted) return;
+
+      setLoading(true);
+      setError(null);
+
       try {
+        console.log("Fetching Quran data...");
         const surahsData = await getSurahs();
+
+        if (!mounted) return;
+
         setSurahs(surahsData);
 
         const {
           data: { user },
         } = await supabase.auth.getUser();
+
+        if (!mounted) return;
+
         setUser(user);
 
         if (user) {
-          const { data: favoritesData } = await supabase
+          const { data: favoritesData, error: favError } = await supabase
             .from("favorites")
             .select("*")
             .eq("user_id", user.id);
-          setFavorites(favoritesData || []);
+
+          if (!mounted) return;
+
+          if (favError) {
+            console.error("Error fetching favorites:", favError);
+          } else {
+            setFavorites(favoritesData || []);
+          }
         }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        toast.error("Gagal memuat data Al-Quran");
+
+        console.log("Quran data loaded successfully");
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        if (mounted) {
+          setError(
+            err instanceof Error ? err.message : "Gagal memuat data Al-Quran"
+          );
+          setSurahs([]);
+          toast.error("Gagal memuat data Al-Quran");
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          console.log("Setting loading to false");
+          setLoading(false);
+        }
       }
     };
 
     fetchData();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   const toggleFavorite = async (surah: Surah) => {
@@ -119,22 +156,6 @@ export default function QuranPage() {
     return matchesSearch && matchesFilter;
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900/20 to-teal-900/20">
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-emerald-500/30"></div>
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-t-emerald-500 absolute top-0"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <BookOpen className="w-8 h-8 text-emerald-400 animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900/20 to-teal-900/20">
       {/* Header */}
@@ -199,105 +220,163 @@ export default function QuranPage() {
             </div>
           </div>
 
-          {/* Surah Grid */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-slide-in delay-200">
-            {filteredSurahs.map((surah, index) => {
-              const isFavorite = favorites.some(
-                (fav) => fav.surah_number === surah.number
-              );
-
-              return (
-                <Card
-                  key={surah.number}
-                  className="group hover:shadow-2xl transition-all duration-500 transform hover:scale-105 bg-slate-800/40 border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden"
-                  style={{ animationDelay: `${index * 50}ms` }}
+          {/* Error Message */}
+          {error && (
+            <Card className="bg-red-500/10 border-red-500/30 backdrop-blur-xl rounded-3xl shadow-2xl">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Terjadi Kesalahan
+                </h3>
+                <p className="text-red-300 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl transition-all duration-300"
                 >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-6">
-                          <span className="text-white font-bold text-lg">
-                            {surah.number}
-                          </span>
+                  Coba Lagi
+                </button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="relative mb-8">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-emerald-500/30 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-emerald-500 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <BookOpen className="w-6 h-6 text-emerald-400 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-white text-lg">Memuat data Al-Quran...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Surah Grid */}
+          {!loading && !error && (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-slide-in delay-200">
+              {filteredSurahs.map((surah, index) => {
+                const isFavorite = favorites.some(
+                  (fav) => fav.surah_number === surah.number
+                );
+
+                return (
+                  <Card
+                    key={surah.number}
+                    className="group hover:shadow-2xl transition-all duration-500 transform hover:scale-105 bg-slate-800/40 border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-6">
+                            <span className="text-white font-bold text-lg">
+                              {surah.number}
+                            </span>
+                          </div>
+                          <div>
+                            <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors duration-300">
+                              {surah.englishName}
+                            </h3>
+                            <p className="text-gray-400 text-sm">
+                              {surah.englishNameTranslation}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors duration-300">
-                            {surah.englishName}
-                          </h3>
-                          <p className="text-gray-400 text-sm">
-                            {surah.englishNameTranslation}
-                          </p>
-                        </div>
+                        {user && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleFavorite(surah)}
+                            className="p-2 hover:bg-red-500/20 transition-colors duration-300"
+                          >
+                            <Heart
+                              className={`h-5 w-5 transition-all duration-300 ${
+                                isFavorite
+                                  ? "fill-red-500 text-red-500 scale-110"
+                                  : "text-gray-400 hover:text-red-400"
+                              }`}
+                            />
+                          </Button>
+                        )}
                       </div>
-                      {user && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleFavorite(surah)}
-                          className="p-2 hover:bg-red-500/20 transition-colors duration-300"
-                        >
-                          <Heart
-                            className={`h-5 w-5 transition-all duration-300 ${
-                              isFavorite
-                                ? "fill-red-500 text-red-500 scale-110"
-                                : "text-gray-400 hover:text-red-400"
-                            }`}
-                          />
-                        </Button>
-                      )}
-                    </div>
 
-                    <div className="text-center mb-4">
-                      <p className="text-4xl font-arabic text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300">
-                        {surah.name}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <Badge
-                          className={`${
-                            surah.revelationType.toLowerCase() === "meccan"
-                              ? "bg-orange-500/20 text-orange-300 border-orange-500/30"
-                              : "bg-blue-500/20 text-blue-300 border-blue-500/30"
-                          } border`}
-                        >
-                          <MapPin className="w-3 h-3 mr-1" />
-                          {surah.revelationType === "Meccan"
-                            ? "Makkiyah"
-                            : "Madaniyah"}
-                        </Badge>
-                        <div className="flex items-center gap-1 text-gray-400 text-sm">
-                          <BookOpen className="w-4 h-4" />
-                          <span>{surah.numberOfAyahs} ayat</span>
-                        </div>
+                      <div className="text-center mb-4">
+                        <p className="text-4xl font-arabic text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300">
+                          {surah.name}
+                        </p>
                       </div>
 
-                      <Link href={`/quran/${surah.number}`}>
-                        <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                          <BookOpen className="w-4 h-4 mr-2" />
-                          Baca
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <Badge
+                            className={`${
+                              surah.revelationType.toLowerCase() === "meccan"
+                                ? "bg-orange-500/20 text-orange-300 border-orange-500/30"
+                                : "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                            } border`}
+                          >
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {surah.revelationType === "Meccan"
+                              ? "Makkiyah"
+                              : "Madaniyah"}
+                          </Badge>
+                          <div className="flex items-center gap-1 text-gray-400 text-sm">
+                            <BookOpen className="w-4 h-4" />
+                            <span>{surah.numberOfAyahs} ayat</span>
+                          </div>
+                        </div>
 
-          {filteredSurahs.length === 0 && (
+                        <Link href={`/quran/${surah.number}`}>
+                          <Button className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                            <BookOpen className="w-4 h-4 mr-2" />
+                            Baca
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+
+          {/* No Results */}
+          {!loading &&
+            !error &&
+            filteredSurahs.length === 0 &&
+            surahs.length > 0 && (
+              <div className="text-center py-20 animate-fade-in">
+                <div className="text-gray-400 mb-6">
+                  <div className="w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Search className="w-12 h-12 opacity-50" />
+                  </div>
+                  <p className="text-2xl font-semibold mb-2">
+                    Tidak ada surah yang ditemukan
+                  </p>
+                  <p className="text-lg">
+                    Coba ubah kata kunci pencarian atau filter
+                  </p>
+                </div>
+              </div>
+            )}
+
+          {/* No Data */}
+          {!loading && !error && surahs.length === 0 && (
             <div className="text-center py-20 animate-fade-in">
               <div className="text-gray-400 mb-6">
                 <div className="w-24 h-24 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Search className="w-12 h-12 opacity-50" />
+                  <BookOpen className="w-12 h-12 opacity-50" />
                 </div>
                 <p className="text-2xl font-semibold mb-2">
-                  Tidak ada surah yang ditemukan
+                  Belum ada data Al-Quran
                 </p>
-                <p className="text-lg">
-                  Coba ubah kata kunci pencarian atau filter
-                </p>
+                <p className="text-lg">Data Al-Quran akan segera tersedia</p>
               </div>
             </div>
           )}

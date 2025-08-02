@@ -34,23 +34,60 @@ export default function DailyPrayersPage() {
   const [prayers, setPrayers] = useState<DailyPrayer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
-    const fetchPrayers = async () => {
-      const { data, error } = await supabase
-        .from("daily_prayers")
-        .select("*")
-        .order("created_at", { ascending: false });
+    let mounted = true;
 
-      if (!error && data) {
-        setPrayers(data);
+    const fetchPrayers = async () => {
+      if (!mounted) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        console.log("Fetching daily prayers...");
+        const { data, error } = await supabase
+          .from("daily_prayers")
+          .select("*")
+          .order("created_at", { ascending: false });
+
+        if (!mounted) return;
+
+        if (error) {
+          console.error("Supabase error:", error);
+          throw new Error("Gagal memuat doa harian");
+        }
+
+        if (data) {
+          setPrayers(data);
+          console.log("Daily prayers loaded successfully:", data.length);
+        } else {
+          setPrayers([]);
+        }
+      } catch (err) {
+        console.error("Error fetching prayers:", err);
+        if (mounted) {
+          setError(
+            err instanceof Error ? err.message : "Gagal memuat doa harian"
+          );
+          setPrayers([]);
+        }
+      } finally {
+        if (mounted) {
+          console.log("Setting loading to false");
+          setLoading(false);
+        }
       }
-      setLoading(false);
     };
 
     fetchPrayers();
+
+    return () => {
+      mounted = false;
+    };
   }, [supabase]);
 
   const categories = [
@@ -77,19 +114,6 @@ export default function DailyPrayersPage() {
       "from-gray-500 to-gray-600"
     );
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30"></div>
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-purple-500 absolute top-0"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
@@ -159,91 +183,146 @@ export default function DailyPrayersPage() {
         </div>
       </div>
 
-      {/* Prayer Cards */}
+      {/* Content Area */}
       <div className="px-4 pb-16">
         <div className="max-w-4xl mx-auto space-y-6">
-          {filteredPrayers.map((prayer, index) => {
-            const Icon = getCategoryIcon(prayer.category);
-            const colorGradient = getCategoryColor(prayer.category);
+          {/* Error Message */}
+          {error && (
+            <Card className="bg-red-500/10 border-red-500/30 backdrop-blur-xl rounded-3xl shadow-2xl">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Heart className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Terjadi Kesalahan
+                </h3>
+                <p className="text-red-300 mb-4">{error}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl transition-all duration-300"
+                >
+                  Coba Lagi
+                </button>
+              </CardContent>
+            </Card>
+          )}
 
-            return (
-              <Card
-                key={prayer.id}
-                className="group hover:shadow-2xl transition-all duration-500 bg-slate-800/50 border-slate-700/50 backdrop-blur-sm animate-slide-in overflow-hidden"
-                style={{ animationDelay: `${index * 200}ms` }}
-              >
-                <CardHeader className="relative">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-12 h-12 bg-gradient-to-br ${colorGradient} rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-6`}
+          {/* Loading State */}
+          {loading && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="relative mb-8">
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-purple-500 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-purple-400 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-white text-lg">Memuat doa harian...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Prayer Cards */}
+          {!loading &&
+            !error &&
+            filteredPrayers.map((prayer, index) => {
+              const Icon = getCategoryIcon(prayer.category);
+              const colorGradient = getCategoryColor(prayer.category);
+
+              return (
+                <Card
+                  key={prayer.id}
+                  className="group hover:shadow-2xl transition-all duration-500 bg-slate-800/50 border-slate-700/50 backdrop-blur-sm animate-slide-in overflow-hidden"
+                  style={{ animationDelay: `${index * 200}ms` }}
+                >
+                  <CardHeader className="relative">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-12 h-12 bg-gradient-to-br ${colorGradient} rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:rotate-6`}
+                        >
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-2xl font-bold text-white group-hover:text-purple-400 transition-colors duration-300">
+                            {prayer.title}
+                          </CardTitle>
+                        </div>
+                      </div>
+                      <Badge
+                        className={`bg-gradient-to-r ${colorGradient} text-white border-0 px-3 py-1`}
                       >
-                        <Icon className="w-6 h-6 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-2xl font-bold text-white group-hover:text-purple-400 transition-colors duration-300">
-                          {prayer.title}
-                        </CardTitle>
-                      </div>
+                        {prayer.category}
+                      </Badge>
                     </div>
-                    <Badge
-                      className={`bg-gradient-to-r ${colorGradient} text-white border-0 px-3 py-1`}
-                    >
-                      {prayer.category}
-                    </Badge>
-                  </div>
-                </CardHeader>
+                  </CardHeader>
 
-                <CardContent className="space-y-6">
-                  {/* Arabic Text - Made Much Larger */}
-                  <div className="text-right bg-gradient-to-r from-slate-700/30 to-slate-600/30 rounded-xl p-6 backdrop-blur-sm">
-                    <p className="text-5xl md:text-6xl leading-loose font-arabic text-purple-400 group-hover:text-purple-300 transition-colors duration-300 mb-4">
-                      {prayer.arabic_text}
-                    </p>
-                  </div>
+                  <CardContent className="space-y-6">
+                    {/* Arabic Text - Made Much Larger */}
+                    <div className="text-right bg-gradient-to-r from-slate-700/30 to-slate-600/30 rounded-xl p-6 backdrop-blur-sm">
+                      <p className="text-5xl md:text-6xl leading-loose font-arabic text-purple-400 group-hover:text-purple-300 transition-colors duration-300 mb-4">
+                        {prayer.arabic_text}
+                      </p>
+                    </div>
 
-                  {/* Transliteration */}
-                  {prayer.transliteration && (
-                    <div className="bg-white/5 rounded-xl p-6 backdrop-blur-sm border border-white/10">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Star className="w-4 h-4 text-purple-400" />
-                        <p className="text-purple-300 font-semibold text-lg">
-                          Transliterasi:
+                    {/* Transliteration */}
+                    {prayer.transliteration && (
+                      <div className="bg-white/5 rounded-xl p-6 backdrop-blur-sm border border-white/10">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Star className="w-4 h-4 text-purple-400" />
+                          <p className="text-purple-300 font-semibold text-lg">
+                            Transliterasi:
+                          </p>
+                        </div>
+                        <p className="text-gray-100 italic text-lg leading-relaxed">
+                          {prayer.transliteration}
                         </p>
                       </div>
-                      <p className="text-gray-100 italic text-lg leading-relaxed">
-                        {prayer.transliteration}
+                    )}
+
+                    {/* Translation */}
+                    <div
+                      className={`bg-gradient-to-r ${colorGradient}/10 rounded-xl p-6 backdrop-blur-sm border border-purple-500/20`}
+                    >
+                      <div className="flex items-center gap-2 mb-3">
+                        <Heart className="w-4 h-4 text-purple-400" />
+                        <p className="text-purple-300 font-semibold text-lg">
+                          Artinya:
+                        </p>
+                      </div>
+                      <p className="text-white leading-relaxed text-lg">
+                        {prayer.translation}
                       </p>
                     </div>
-                  )}
+                  </CardContent>
+                </Card>
+              );
+            })}
 
-                  {/* Translation */}
-                  <div
-                    className={`bg-gradient-to-r ${colorGradient}/10 rounded-xl p-6 backdrop-blur-sm border border-purple-500/20`}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <Heart className="w-4 h-4 text-purple-400" />
-                      <p className="text-purple-300 font-semibold text-lg">
-                        Artinya:
-                      </p>
-                    </div>
-                    <p className="text-white leading-relaxed text-lg">
-                      {prayer.translation}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+          {/* No Results */}
+          {!loading &&
+            !error &&
+            filteredPrayers.length === 0 &&
+            prayers.length > 0 && (
+              <div className="text-center py-12 animate-fade-in">
+                <div className="text-gray-400 mb-4">
+                  <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-xl">Tidak ada doa yang ditemukan</p>
+                  <p className="text-sm">
+                    Coba ubah kata kunci pencarian atau kategori
+                  </p>
+                </div>
+              </div>
+            )}
 
-          {filteredPrayers.length === 0 && (
+          {/* No Data */}
+          {!loading && !error && prayers.length === 0 && (
             <div className="text-center py-12 animate-fade-in">
               <div className="text-gray-400 mb-4">
-                <Search className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-xl">Tidak ada doa yang ditemukan</p>
-                <p className="text-sm">
-                  Coba ubah kata kunci pencarian atau kategori
-                </p>
+                <Heart className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-xl">Belum ada doa yang tersedia</p>
+                <p className="text-sm">Doa harian akan segera ditambahkan</p>
               </div>
             </div>
           )}

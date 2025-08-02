@@ -54,20 +54,65 @@ export default function PrayerTimesPage() {
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
   const [city, setCity] = useState("Jakarta");
   const [inputCity, setInputCity] = useState("Jakarta");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  // Fetch prayer times
   useEffect(() => {
+    let mounted = true;
+
     const fetchPrayerTimes = async () => {
+      if (!mounted) return;
+
       setLoading(true);
-      const times = await getPrayerTimes(city);
-      setPrayerTimes(times);
-      setLoading(false);
+      setError(null);
+
+      try {
+        console.log("Fetching prayer times for:", city);
+        const times = await getPrayerTimes(city);
+        console.log("API Response:", times);
+
+        if (!mounted) return;
+
+        if (
+          times &&
+          typeof times === "object" &&
+          times.Fajr &&
+          times.Dhuhr &&
+          times.Asr &&
+          times.Maghrib &&
+          times.Isha
+        ) {
+          setPrayerTimes(times);
+          console.log("Prayer times set successfully");
+        } else {
+          throw new Error("Data jadwal sholat tidak lengkap");
+        }
+      } catch (err) {
+        console.error("Error fetching prayer times:", err);
+        if (mounted) {
+          setError(
+            err instanceof Error ? err.message : "Gagal memuat jadwal sholat"
+          );
+          setPrayerTimes(null);
+        }
+      } finally {
+        if (mounted) {
+          console.log("Setting loading to false");
+          setLoading(false);
+        }
+      }
     };
 
     fetchPrayerTimes();
+
+    return () => {
+      mounted = false;
+    };
   }, [city]);
 
+  // Current time update
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -77,7 +122,10 @@ export default function PrayerTimesPage() {
   }, []);
 
   const handleCityChange = () => {
-    setCity(inputCity);
+    const trimmedCity = inputCity.trim();
+    if (trimmedCity && trimmedCity !== city) {
+      setCity(trimmedCity);
+    }
   };
 
   const prayerNames = {
@@ -119,22 +167,7 @@ export default function PrayerTimesPage() {
 
   const nextPrayer = getNextPrayer();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900/20 to-indigo-900/20">
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-500/30"></div>
-            <div className="animate-spin rounded-full h-20 w-20 border-4 border-t-blue-500 absolute top-0"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Clock className="w-8 h-8 text-blue-400 animate-pulse" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Main content
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900/20 to-indigo-900/20">
       {/* Header Section */}
@@ -187,14 +220,49 @@ export default function PrayerTimesPage() {
                 </div>
                 <Button
                   onClick={handleCityChange}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  disabled={loading}
+                  className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-8 py-4 text-lg font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed relative"
                 >
-                  <MapPin className="w-5 h-5 mr-2" />
-                  Cari
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white mr-2"></div>
+                      Mencari...
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-5 h-5 mr-2" />
+                      Cari
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
           </Card>
+
+          {/* Error Message */}
+          {error && (
+            <Card className="bg-red-500/10 border-red-500/30 backdrop-blur-xl rounded-3xl shadow-2xl">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MapPin className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Terjadi Kesalahan
+                </h3>
+                <p className="text-red-300 mb-4">{error}</p>
+                <Button
+                  onClick={() => {
+                    setError(null);
+                    setCity(city + " ");
+                    setTimeout(() => setCity(city.trim()), 100);
+                  }}
+                  className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-6 py-3 rounded-xl"
+                >
+                  Coba Lagi
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Current Time & Date */}
           <Card className="bg-gradient-to-r from-slate-800/40 to-slate-700/40 border-slate-700/50 backdrop-blur-xl rounded-3xl shadow-2xl animate-slide-in delay-100">
@@ -222,7 +290,7 @@ export default function PrayerTimesPage() {
           </Card>
 
           {/* Next Prayer */}
-          {nextPrayer && (
+          {nextPrayer && !loading && (
             <Card className="bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-emerald-500/30 backdrop-blur-xl rounded-3xl shadow-2xl animate-slide-in delay-200">
               <CardHeader className="text-center pb-4">
                 <div className="flex items-center justify-center gap-3 mb-4">
@@ -254,7 +322,7 @@ export default function PrayerTimesPage() {
           )}
 
           {/* Prayer Times Grid */}
-          {prayerTimes && (
+          {prayerTimes && !loading && (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 animate-slide-in delay-300">
               {Object.entries(prayerNames).map(([key, name], index) => {
                 const Icon = PRAYER_ICONS[key as keyof typeof PRAYER_ICONS];
@@ -300,6 +368,24 @@ export default function PrayerTimesPage() {
                   </Card>
                 );
               })}
+            </div>
+          )}
+
+          {/* Loading State in Main Content */}
+          {loading && (
+            <div className="flex justify-center items-center py-20">
+              <div className="text-center">
+                <div className="relative mb-8">
+                  <div className="animate-spin rounded-full h-20 w-20 border-4 border-blue-500/30 mx-auto"></div>
+                  <div className="animate-spin rounded-full h-20 w-20 border-4 border-t-blue-500 absolute top-0 left-1/2 transform -translate-x-1/2"></div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Clock className="w-8 h-8 text-blue-400 animate-pulse" />
+                  </div>
+                </div>
+                <p className="text-white text-lg">
+                  Memuat jadwal sholat untuk {city}...
+                </p>
+              </div>
             </div>
           )}
         </div>
