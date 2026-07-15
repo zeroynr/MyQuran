@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { getSurah } from "@/lib/quran-api";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,6 +26,8 @@ import {
   Bookmark,
   Volume2,
   Plus,
+  ListMusic,
+  Square,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -46,7 +48,7 @@ interface Ayah {
 
 interface SurahData {
   number: number;
-  name: string; // ✅ Fixed: Changed from number to string
+  name: string;
   englishName: string;
   englishNameTranslation: string;
   revelationType: string;
@@ -60,24 +62,25 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
   const [loading, setLoading] = useState(true);
   const [playingAyah, setPlayingAyah] = useState<number | null>(null);
   const [audioLoading, setAudioLoading] = useState<number | null>(null);
+  const [isPlayingAll, setIsPlayingAll] = useState(false);
   const [bookmarkNote, setBookmarkNote] = useState("");
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const [selectedAyah, setSelectedAyah] = useState<Ayah | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isPlayingAllRef = useRef(false); // ref agar callback selalu baca state terbaru
   const supabase = createClient();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const surahData = await getSurah(surahNumber);
-        setSurah(surahData); // ✅ Now this works because types match
+        setSurah(surahData);
 
         const {
           data: { user },
         } = await supabase.auth.getUser();
         setUser(user);
 
-        // Record reading history
         if (user && surahData) {
           await supabase.from("reading_history").upsert(
             {
@@ -89,7 +92,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
             },
             {
               onConflict: "user_id,surah_number",
-            }
+            },
           );
         }
       } catch (error) {
@@ -106,6 +109,7 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
   // Cleanup audio when component unmounts
   useEffect(() => {
     return () => {
+      isPlayingAllRef.current = false;
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.src = "";
@@ -166,76 +170,152 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
     }
   };
 
-  const playAyah = async (ayahNumber: number, audioUrl: string) => {
-    try {
-      console.log(`🎵 Playing ayah ${ayahNumber}`);
+  const stopAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.oncanplaythrough = null;
+      audioRef.current.src = "";
+      audioRef.current = null;
+    }
+  }, []);
 
-      // Stop current audio if playing
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-        audioRef.current = null;
-      }
+  // Stop "Play All" mode sepenuhnya
+  const stopPlayAll = useCallback(() => {
+    isPlayingAllRef.current = false;
+    setIsPlayingAll(false);
+    setPlayingAyah(null);
+    setAudioLoading(null);
+    stopAudio();
+  }, [stopAudio]);
 
-      // If clicking the same ayah that's playing, stop it
-      if (playingAyah === ayahNumber) {
-        setPlayingAyah(null);
-        setAudioLoading(null);
+  // Scroll ke card ayat tertentu
+  const scrollToAyah = (ayahNumberInSurah: number) => {
+    const el = document.getElementById(`ayah-${ayahNumberInSurah}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  // Memutar satu ayat, dengan opsi callback saat selesai (untuk Play All)
+  const playSingleAyah = useCallback(
+    (ayahNumber: number, audioUrl: string, onFinished?: () => void) => {
+      if (!audioUrl) {
+        toast.error(`Audio ayat ${ayahNumber} tidak tersedia`);
+        onFinished?.();
         return;
       }
 
+      stopAudio();
       setAudioLoading(ayahNumber);
 
-      // Create new audio element
       const audio = new Audio();
       audio.preload = "auto";
       audio.crossOrigin = "anonymous";
       audio.src = audioUrl;
 
-      // Handle successful loading
-      const handleCanPlay = () => {
-        console.log(`✅ Audio ready for ayah ${ayahNumber}`);
+      audio.oncanplaythrough = () => {
         setAudioLoading(null);
         setPlayingAyah(ayahNumber);
       };
 
-      // Handle audio ended
-      const handleEnded = () => {
-        console.log(`🏁 Audio ended for ayah ${ayahNumber}`);
+      audio.onended = () => {
         setPlayingAyah(null);
         setAudioLoading(null);
+        onFinished?.();
       };
 
-      // Handle audio error
-      const handleError = (e: Event) => {
-        console.error("Audio error:", e);
+      audio.onerror = () => {
+        console.error(`Audio error pada ayat ${ayahNumber}`);
         setPlayingAyah(null);
         setAudioLoading(null);
-        toast.error("Gagal memutar audio");
+        if (isPlayingAllRef.current) {
+          toast.error(`Gagal memutar ayat ${ayahNumber}, lanjut ke berikutnya`);
+          onFinished?.();
+        } else {
+          toast.error("Gagal memutar audio");
+        }
       };
 
-      // Add event listeners
-      audio.addEventListener("canplaythrough", handleCanPlay, { once: true });
-      audio.addEventListener("ended", handleEnded, { once: true });
-      audio.addEventListener("error", handleError, { once: true });
-
-      // Load and play
       audio.load();
+      audio
+        .play()
+        .then(() => {
+          audioRef.current = audio;
+        })
+        .catch((err) => {
+          console.error(`Play gagal untuk ayat ${ayahNumber}:`, err);
+          setPlayingAyah(null);
+          setAudioLoading(null);
+          if (isPlayingAllRef.current) {
+            onFinished?.();
+          } else {
+            toast.error("Gagal memutar audio");
+          }
+        });
+    },
+    [stopAudio],
+  );
 
-      try {
-        await audio.play();
-        console.log(`▶️ Successfully started playing ayah ${ayahNumber}`);
-        audioRef.current = audio;
-      } catch (playError) {
-        console.error(`❌ Play failed for ayah ${ayahNumber}:`, playError);
-        handleError(new Event("error"));
-      }
-    } catch (error) {
-      console.error(`💥 Error in playAyah for ayah ${ayahNumber}:`, error);
+  // Putar satu ayat manual (tombol per-ayat)
+  const playAyah = (ayahNumber: number, audioUrl: string) => {
+    // Kalau lagi mode Play All, hentikan dulu mode itu
+    if (isPlayingAllRef.current) {
+      stopPlayAll();
+    }
+
+    if (playingAyah === ayahNumber) {
+      // klik ayat yang sama -> stop
       setPlayingAyah(null);
       setAudioLoading(null);
-      toast.error("Gagal memutar audio");
+      stopAudio();
+      return;
     }
+
+    playSingleAyah(ayahNumber, audioUrl);
+  };
+
+  // Fitur utama: Play All dari ayat pertama sampai terakhir
+  const playAllAyahs = () => {
+    if (!surah?.ayahs || surah.ayahs.length === 0) return;
+
+    // Kalau sedang playing all, tombol ini jadi tombol stop
+    if (isPlayingAllRef.current) {
+      stopPlayAll();
+      toast.info("Pemutaran dihentikan");
+      return;
+    }
+
+    isPlayingAllRef.current = true;
+    setIsPlayingAll(true);
+
+    const ayahs = surah.ayahs;
+    let currentIndex = 0;
+
+    const playNext = () => {
+      if (!isPlayingAllRef.current) return; // sudah dihentikan user
+
+      if (currentIndex >= ayahs.length) {
+        // selesai semua ayat
+        isPlayingAllRef.current = false;
+        setIsPlayingAll(false);
+        setPlayingAyah(null);
+        toast.success("Selesai memutar seluruh ayat");
+        return;
+      }
+
+      const ayah = ayahs[currentIndex];
+      scrollToAyah(ayah.numberInSurah);
+
+      playSingleAyah(ayah.numberInSurah, ayah.audio || "", () => {
+        currentIndex += 1;
+        playNext();
+      });
+    };
+
+    toast.success("Memutar semua ayat dari awal");
+    playNext();
   };
 
   const copyAyah = (ayahText: string, ayahNumber: number) => {
@@ -365,37 +445,187 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
                     {surah.numberOfAyahs} Ayat
                   </Badge>
                 </div>
+
+                {/* Tombol Play All */}
+                <div className="pt-2">
+                  <Button
+                    onClick={playAllAyahs}
+                    className={`px-8 py-6 text-base font-semibold rounded-2xl shadow-lg transition-all duration-300 ${
+                      isPlayingAll
+                        ? "bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600"
+                        : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                    }`}
+                  >
+                    {isPlayingAll ? (
+                      <>
+                        <Square className="w-5 h-5 mr-2" />
+                        Hentikan Pemutaran
+                      </>
+                    ) : (
+                      <>
+                        <ListMusic className="w-5 h-5 mr-2" />
+                        Putar Semua Ayat
+                      </>
+                    )}
+                  </Button>
+                  {isPlayingAll && playingAyah && (
+                    <p className="text-emerald-300 text-sm mt-3 animate-pulse">
+                      Sedang memutar ayat {playingAyah} dari{" "}
+                      {surah.numberOfAyahs}
+                    </p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Ayahs */}
           <div className="space-y-6 animate-slide-in delay-200">
-            {surah.ayahs?.map((ayah: Ayah, index: number) => (
-              <Card
-                key={ayah.number}
-                className="group hover:shadow-2xl transition-all duration-500 bg-slate-800/40 border-slate-700/50 backdrop-blur-xl rounded-2xl overflow-hidden"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <CardContent className="p-8">
-                  <div className="space-y-6">
-                    {/* Ayah Number */}
-                    <div className="flex items-center justify-between">
-                      <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl flex items-center justify-center shadow-lg">
-                        <span className="text-white font-bold">
-                          {ayah.numberInSurah}
-                        </span>
+            {surah.ayahs?.map((ayah: Ayah, index: number) => {
+              const isActive = playingAyah === ayah.numberInSurah;
+
+              return (
+                <Card
+                  key={ayah.number}
+                  id={`ayah-${ayah.numberInSurah}`}
+                  className={`group hover:shadow-2xl transition-all duration-500 backdrop-blur-xl rounded-2xl overflow-hidden ${
+                    isActive
+                      ? "bg-emerald-900/30 border-emerald-500/60 ring-2 ring-emerald-500/50 shadow-2xl shadow-emerald-500/20"
+                      : "bg-slate-800/40 border-slate-700/50"
+                  }`}
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <CardContent className="p-8">
+                    <div className="space-y-6">
+                      {/* Ayah Number */}
+                      <div className="flex items-center justify-between">
+                        <div
+                          className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 ${
+                            isActive
+                              ? "bg-gradient-to-r from-emerald-400 to-teal-400 scale-110"
+                              : "bg-gradient-to-r from-emerald-500 to-teal-500"
+                          }`}
+                        >
+                          <span className="text-white font-bold">
+                            {ayah.numberInSurah}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              copyAyah(ayah.text, ayah.numberInSurah)
+                            }
+                            className="text-gray-400 hover:text-white hover:bg-slate-700/50"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              shareAyah(ayah.text, ayah.numberInSurah)
+                            }
+                            className="text-gray-400 hover:text-white hover:bg-slate-700/50"
+                          >
+                            <Share2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      {/* Arabic Text - Right Aligned (RTL) */}
+                      <div className="bg-gradient-to-r from-slate-700/30 to-slate-600/30 rounded-2xl p-8 backdrop-blur-sm">
+                        <p
+                          className="text-5xl md:text-6xl leading-loose font-arabic text-transparent bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300 bg-clip-text group-hover:from-emerald-200 group-hover:via-teal-200 group-hover:to-cyan-200 transition-all duration-500 drop-shadow-2xl text-right"
+                          dir="rtl"
+                          style={{ fontFamily: "Amiri, serif" }}
+                        >
+                          {ayah.text}
+                        </p>
+                      </div>
+
+                      {/* Transliteration */}
+                      {ayah.transliteration && (
+                        <div className="bg-slate-700/30 rounded-2xl p-6 backdrop-blur-sm border border-slate-600/50 shadow-xl">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                              <Star className="w-4 h-4 text-white" />
+                            </div>
+                            <p className="text-purple-300 font-semibold">
+                              Transliterasi:
+                            </p>
+                          </div>
+                          <p className="text-gray-100 italic text-lg leading-relaxed pl-11">
+                            {ayah.transliteration}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Indonesian Translation */}
+                      <div className="bg-gradient-to-r from-emerald-500/15 to-teal-500/15 rounded-2xl p-6 backdrop-blur-sm border border-emerald-500/30 shadow-xl">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
+                            <Heart className="w-4 h-4 text-white" />
+                          </div>
+                          <p className="text-emerald-300 font-semibold">
+                            Artinya:
+                          </p>
+                        </div>
+                        <p className="text-white leading-relaxed text-lg pl-11">
+                          {ayah.translation || "Terjemahan tidak tersedia"}
+                        </p>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 pt-4 border-t border-slate-700/50">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            playAyah(ayah.numberInSurah, ayah.audio || "")
+                          }
+                          disabled={audioLoading === ayah.numberInSurah}
+                          className={`${
+                            playingAyah === ayah.numberInSurah
+                              ? "text-emerald-400 bg-emerald-500/20"
+                              : audioLoading === ayah.numberInSurah
+                                ? "text-yellow-400 bg-yellow-500/20"
+                                : "text-emerald-300 hover:text-emerald-400 hover:bg-emerald-500/10"
+                          } transition-all duration-200`}
+                        >
+                          {audioLoading === ayah.numberInSurah ? (
+                            <Volume2 className="w-4 h-4 mr-1 animate-pulse" />
+                          ) : playingAyah === ayah.numberInSurah ? (
+                            <Pause className="w-4 h-4 mr-1" />
+                          ) : (
+                            <Play className="w-4 h-4 mr-1" />
+                          )}
+                          {audioLoading === ayah.numberInSurah
+                            ? "Loading..."
+                            : playingAyah === ayah.numberInSurah
+                              ? "Berhenti"
+                              : "Putar"}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() =>
                             copyAyah(ayah.text, ayah.numberInSurah)
                           }
-                          className="text-gray-400 hover:text-white hover:bg-slate-700/50"
+                          className="text-gray-300 hover:text-white hover:bg-slate-700/50"
                         >
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-4 h-4 mr-1" />
+                          Salin
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openBookmarkDialog(ayah)}
+                          className="text-gray-300 hover:text-white hover:bg-slate-700/50"
+                        >
+                          <Bookmark className="w-4 h-4 mr-1" />
+                          Tandai
                         </Button>
                         <Button
                           variant="ghost"
@@ -403,117 +633,16 @@ export default function SurahReader({ surahNumber }: SurahReaderProps) {
                           onClick={() =>
                             shareAyah(ayah.text, ayah.numberInSurah)
                           }
-                          className="text-gray-400 hover:text-white hover:bg-slate-700/50"
+                          className="text-emerald-300 hover:text-emerald-400 hover:bg-emerald-500/10 ml-auto"
                         >
                           <Share2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
-
-                    {/* Arabic Text - Right Aligned (RTL) */}
-                    <div className="bg-gradient-to-r from-slate-700/30 to-slate-600/30 rounded-2xl p-8 backdrop-blur-sm">
-                      <p
-                        className="text-5xl md:text-6xl leading-loose font-arabic text-transparent bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300 bg-clip-text group-hover:from-emerald-200 group-hover:via-teal-200 group-hover:to-cyan-200 transition-all duration-500 drop-shadow-2xl text-right"
-                        dir="rtl"
-                        style={{ fontFamily: "Amiri, serif" }}
-                      >
-                        {ayah.text}
-                      </p>
-                    </div>
-
-                    {/* Transliteration */}
-                    {ayah.transliteration && (
-                      <div className="bg-slate-700/30 rounded-2xl p-6 backdrop-blur-sm border border-slate-600/50 shadow-xl">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                            <Star className="w-4 h-4 text-white" />
-                          </div>
-                          <p className="text-purple-300 font-semibold">
-                            Transliterasi:
-                          </p>
-                        </div>
-                        <p className="text-gray-100 italic text-lg leading-relaxed pl-11">
-                          {ayah.transliteration}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Indonesian Translation */}
-                    <div className="bg-gradient-to-r from-emerald-500/15 to-teal-500/15 rounded-2xl p-6 backdrop-blur-sm border border-emerald-500/30 shadow-xl">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center">
-                          <Heart className="w-4 h-4 text-white" />
-                        </div>
-                        <p className="text-emerald-300 font-semibold">
-                          Artinya:
-                        </p>
-                      </div>
-                      <p className="text-white leading-relaxed text-lg pl-11">
-                        {ayah.translation || "Terjemahan tidak tersedia"}
-                      </p>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-4 border-t border-slate-700/50">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          playAyah(ayah.numberInSurah, ayah.audio || "")
-                        }
-                        disabled={audioLoading === ayah.numberInSurah}
-                        className={`${
-                          playingAyah === ayah.numberInSurah
-                            ? "text-emerald-400 bg-emerald-500/20"
-                            : audioLoading === ayah.numberInSurah
-                            ? "text-yellow-400 bg-yellow-500/20"
-                            : "text-emerald-300 hover:text-emerald-400 hover:bg-emerald-500/10"
-                        } transition-all duration-200`}
-                      >
-                        {audioLoading === ayah.numberInSurah ? (
-                          <Volume2 className="w-4 h-4 mr-1 animate-pulse" />
-                        ) : playingAyah === ayah.numberInSurah ? (
-                          <Pause className="w-4 h-4 mr-1" />
-                        ) : (
-                          <Play className="w-4 h-4 mr-1" />
-                        )}
-                        {audioLoading === ayah.numberInSurah
-                          ? "Loading..."
-                          : playingAyah === ayah.numberInSurah
-                          ? "Berhenti"
-                          : "Putar"}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyAyah(ayah.text, ayah.numberInSurah)}
-                        className="text-gray-300 hover:text-white hover:bg-slate-700/50"
-                      >
-                        <Copy className="w-4 h-4 mr-1" />
-                        Salin
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openBookmarkDialog(ayah)}
-                        className="text-gray-300 hover:text-white hover:bg-slate-700/50"
-                      >
-                        <Bookmark className="w-4 h-4 mr-1" />
-                        Tandai
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => shareAyah(ayah.text, ayah.numberInSurah)}
-                        className="text-emerald-300 hover:text-emerald-400 hover:bg-emerald-500/10 ml-auto"
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
           {(!surah.ayahs || surah.ayahs.length === 0) && (

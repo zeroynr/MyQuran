@@ -129,7 +129,7 @@ function cleanBismillahFromAyah(text: string): string {
 
 // Get specific surah with Indonesian translation and transliteration
 export async function getSurah(
-  number: number
+  number: number,
 ): Promise<SurahWithTranslation | null> {
   try {
     console.log(`Fetching surah ${number}...`);
@@ -158,7 +158,7 @@ export async function getSurah(
 
 // Get surah from Quran.com API (better Bismillah handling) - Priority 1
 async function getSurahFromQuranCom(
-  number: number
+  number: number,
 ): Promise<SurahWithTranslation | null> {
   try {
     // Get surah info
@@ -171,10 +171,10 @@ async function getSurahFromQuranCom(
     // Get verses with translations and transliteration
     const [versesResponse, transliterationResponse] = await Promise.all([
       fetch(
-        `${QURAN_COM_API}/verses/by_chapter/${number}?language=id&fields=text_uthmani&translations=134&per_page=300`
+        `${QURAN_COM_API}/verses/by_chapter/${number}?language=id&fields=text_uthmani&translations=134&per_page=300`,
       ),
       fetch(`${QURAN_API_BASE}/surah/${number}/en.transliteration`).catch(
-        () => null
+        () => null,
       ),
     ]);
 
@@ -227,10 +227,10 @@ async function getSurahFromQuranCom(
           juz: verseData.juz_number as number,
           page: verseData.page_number as number,
           audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
-            number
+            number,
           ).padStart(3, "0")}${String(ayahNumber).padStart(3, "0")}.mp3`,
         };
-      }
+      },
     );
 
     console.log(`Quran.com API - Final ayahs count: ${processedAyahs.length}`);
@@ -253,7 +253,7 @@ async function getSurahFromQuranCom(
 
 // Get surah from AlQuran.cloud API (fallback) - Priority 2
 async function getSurahFromAlQuranCloud(
-  number: number
+  number: number,
 ): Promise<SurahWithTranslation | null> {
   try {
     // Fetch Arabic text, Indonesian translation, and English transliteration
@@ -280,7 +280,7 @@ async function getSurahFromAlQuranCloud(
     }
 
     console.log(
-      `AlQuran.cloud API - Original ayahs count: ${arabicData.data.ayahs.length}`
+      `AlQuran.cloud API - Original ayahs count: ${arabicData.data.ayahs.length}`,
     );
 
     const arabicAyahs = arabicData.data.ayahs;
@@ -301,7 +301,7 @@ async function getSurahFromAlQuranCloud(
 
           if (originalText !== arabicText) {
             console.log(
-              `🧹 Cleaned first ayah of surah ${number} (AlQuran.cloud)`
+              `🧹 Cleaned first ayah of surah ${number} (AlQuran.cloud)`,
             );
             console.log(`🧹 Original: "${originalText}"`);
             console.log(`🧹 Cleaned: "${arabicText}"`);
@@ -326,14 +326,14 @@ async function getSurahFromAlQuranCloud(
           hizbQuarter: ayahData.hizbQuarter as number,
           sajda: ayahData.sajda as boolean,
           audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
-            number
+            number,
           ).padStart(3, "0")}${String(ayahNumber).padStart(3, "0")}.mp3`,
         };
-      }
+      },
     );
 
     console.log(
-      `AlQuran.cloud API - Final ayahs count: ${combinedAyahs.length}`
+      `AlQuran.cloud API - Final ayahs count: ${combinedAyahs.length}`,
     );
 
     return {
@@ -353,32 +353,39 @@ async function getSurahFromAlQuranCloud(
 
 // Prayer times API
 export async function getPrayerTimes(city = "Jakarta"): Promise<PrayerTimes> {
-  try {
-    const response = await fetch(
-      `https://api.aladhan.com/v1/timingsByCity?city=${city}&country=Indonesia&method=2`
-    );
+  const url = `https://api.aladhan.com/v1/timingsByCity?city=${encodeURIComponent(
+    city,
+  )}&country=Indonesia&method=20&timezonestring=Asia/Jakarta`;
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+  const response = await fetch(url, { cache: "no-store" });
 
-    const data = await response.json();
-
-    if (data && data.data && data.data.timings) {
-      return data.data.timings;
-    }
-
-    throw new Error("Invalid response format");
-  } catch (error) {
-    console.error("Error fetching prayer times:", error);
-    return {
-      Fajr: "05:30",
-      Dhuhr: "12:15",
-      Asr: "15:30",
-      Maghrib: "18:45",
-      Isha: "20:00",
-    };
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
+
+  const data = await response.json();
+
+  if (data?.code !== 200 || !data?.data?.timings) {
+    throw new Error(
+      data?.data === "Unknown location" || data?.status?.includes("Unknown")
+        ? `Kota "${city}" tidak ditemukan`
+        : "Format respons API tidak valid",
+    );
+  }
+
+  const timings = data.data.timings;
+
+  // Aladhan API kadang mengembalikan waktu dengan suffix timezone, contoh "04:38 (WIB)"
+  // Bersihkan supaya cuma format jam:menit
+  const cleanTime = (t: string) => t.split(" ")[0];
+
+  return {
+    Fajr: cleanTime(timings.Fajr),
+    Dhuhr: cleanTime(timings.Dhuhr),
+    Asr: cleanTime(timings.Asr),
+    Maghrib: cleanTime(timings.Maghrib),
+    Isha: cleanTime(timings.Isha),
+  };
 }
 
 // Test API connectivity
@@ -538,7 +545,7 @@ function getStaticSurah(number: number): SurahWithTranslation | null {
       juz: 1,
       page: 1,
       audio: `https://everyayah.com/data/Alafasy_128kbps/${String(
-        number
+        number,
       ).padStart(3, "0")}${String(i + 1).padStart(3, "0")}.mp3`,
     })),
   };

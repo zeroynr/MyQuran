@@ -18,7 +18,7 @@ export default function QuranPage() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "meccan" | "medinan">(
-    "all"
+    "all",
   );
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
@@ -70,7 +70,7 @@ export default function QuranPage() {
         console.error("Error fetching data:", err);
         if (mounted) {
           setError(
-            err instanceof Error ? err.message : "Gagal memuat data Al-Quran"
+            err instanceof Error ? err.message : "Gagal memuat data Al-Quran",
           );
           setSurahs([]);
           toast.error("Gagal memuat data Al-Quran");
@@ -97,7 +97,7 @@ export default function QuranPage() {
     }
 
     const isFavorite = favorites.some(
-      (fav) => fav.surah_number === surah.number
+      (fav) => fav.surah_number === surah.number,
     );
 
     try {
@@ -110,7 +110,7 @@ export default function QuranPage() {
 
         if (!error) {
           setFavorites(
-            favorites.filter((fav) => fav.surah_number !== surah.number)
+            favorites.filter((fav) => fav.surah_number !== surah.number),
           );
           toast.success(`${surah.englishName} dihapus dari favorit`);
         }
@@ -262,7 +262,7 @@ export default function QuranPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 animate-slide-in delay-200">
               {filteredSurahs.map((surah, index) => {
                 const isFavorite = favorites.some(
-                  (fav) => fav.surah_number === surah.number
+                  (fav) => fav.surah_number === surah.number,
                 );
 
                 return (
@@ -280,10 +280,10 @@ export default function QuranPage() {
                             </span>
                           </div>
                           <div>
-                            <h3 className="text-xl font-bold text-white group-hover:text-emerald-400 transition-colors duration-300">
+                            <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors duration-300">
                               {surah.englishName}
                             </h3>
-                            <p className="text-gray-400 text-sm">
+                            <p className="text-gray-400 text-xs">
                               {surah.englishNameTranslation}
                             </p>
                           </div>
@@ -306,8 +306,11 @@ export default function QuranPage() {
                         )}
                       </div>
 
-                      <div className="text-center mb-4">
-                        <p className="text-4xl font-arabic text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300">
+                      <div className="text-center mb-4 min-h-[100px] md:min-h-[120px] flex items-center justify-center px-2">
+                        <p
+                          dir="rtl"
+                          className="text-3xl md:text-4xl lg:text-5xl font-arabic font-semibold leading-snug text-emerald-400 group-hover:text-emerald-300 transition-colors duration-300 whitespace-nowrap overflow-hidden text-ellipsis max-w-full"
+                        >
                           {surah.name}
                         </p>
                       </div>
